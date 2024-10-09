@@ -1,0 +1,55 @@
+---
+- name: Revert VPN Client Configuration Locally
+  hosts: localhost
+  connection: local
+  become: yes
+  tasks:
+    - name: Remove tun interface
+      command: ip link delete tun0
+      ignore_errors: yes
+    - name: Get active network connections
+      shell: nmcli connection show --active | tail -n +2 | awk '{print $1}'
+      register: active_connections
+
+    - name: Restart active connections
+      shell: nmcli connection down "{{ item }}" && nmcli connection up "{{ item }}"
+      loop: "{{ active_connections.stdout_lines }}"
+      when: item != "lo"  # Exclude loopback interface if necessary
+
+    # - name: Restore default route if removed
+    #   command: ip route add default via {{ default_gateway.stdout }}
+    #   when: default_gateway.stdout is defined
+    #
+    # - name: Remove VPN route as default
+    #   command: ip route del default
+
+    # - name: Disable IP forwarding (if enabled)
+    #   sysctl:
+    #     name: net.ipv4.ip_forward
+    #     value: '0'
+    #     state: present
+    #     reload: yes
+
+    # - name: Remove NAT rules from iptables (if added)
+    #   iptables:
+    #     table: nat
+    #     chain: POSTROUTING
+    #     out_interface: "{{ ansible_default_ipv4.interface }}"
+    #     jump: MASQUERADE
+    #     state: absent
+
+    # - name: Allow forwarding of VPN traffic (if added)
+    #   iptables:
+    #     chain: FORWARD
+    #     in_interface: "tun0"
+    #     jump: ACCEPT
+    #     state: absent
+    #
+    # - name: Allow incoming VPN traffic (if added)
+    #   iptables:
+    #     chain: INPUT
+    #     in_interface: "tun0"
+    #     jump: ACCEPT
+    #     state: absent
+
+

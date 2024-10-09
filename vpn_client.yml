@@ -1,0 +1,40 @@
+---
+- name: Set up VPN Client
+  hosts: vpn_client
+  become: yes
+  vars_files:
+    - vars.yaml
+  # vars:
+  #   server_ip: "128.140.41.181"
+  #   server_user: "root"
+  
+  tasks:
+    - name: Get default gateway
+      shell: ip route | awk '/default/ { print $3 }'
+      register: default_gateway
+      changed_when: false
+
+    - name: Add tun interface
+      command: ip tuntap add mode tun tun0
+      ignore_errors: yes
+
+    - name: Configure tun interface
+      command: ip addr add 200.34.35.2/24 dev tun0
+
+    - name: Bring up tun interface
+      command: ip link set tun0 up
+
+    - name: Connect to VPN server
+      command: ssh -Nf -w 0:0 {{ server_user }}@{{ server_ip }}
+      async: 10
+      poll: 0
+
+    - name: Remove default route
+      command: ip route del default
+
+    - name: Add VPN route as default
+      command: ip route add default via 200.34.35.1
+
+    - name: Add route to server via original gateway
+      command: ip route add {{ server_ip }} via {{ default_gateway.stdout }}
+

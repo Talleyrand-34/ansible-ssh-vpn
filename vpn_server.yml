@@ -1,0 +1,47 @@
+---
+- name: Set up VPN Server
+  hosts: vpn_server
+  become: yes
+  vars_files:
+    - vars.yaml
+  # vars:
+  #   interface: "{{ ansible_default_ipv4.interface }}"
+  
+  tasks:
+    - name: Enable PermitTunnel in sshd_config
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        line: "PermitTunnel yes"
+        state: present
+      notify: Restart SSH
+
+    - name: Add tun interface
+      command: ip tuntap add mode tun tun0
+      ignore_errors: yes
+
+    - name: Configure tun interface
+      command: ip addr add 200.34.35.1/24 dev tun0
+
+    - name: Bring up tun interface
+      command: ip link set tun0 up
+
+    - name: Enable IP forwarding
+      sysctl:
+        name: net.ipv4.ip_forward
+        value: '1'
+        state: present
+        reload: yes
+
+    - name: Set up NAT
+      iptables:
+        table: nat
+        chain: POSTROUTING
+        out_interface: "{{ interface }}"
+        jump: MASQUERADE
+
+  handlers:
+    - name: Restart SSH
+      service:
+        name: sshd
+        state: restarted
+

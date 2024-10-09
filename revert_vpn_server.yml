@@ -1,0 +1,37 @@
+---
+- name: Revert VPN Server Configuration
+  hosts: vpn_server
+  become: yes
+  tasks:
+    - name: Remove PermitTunnel from sshd_config
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^PermitTunnel'
+        state: absent
+      notify: Restart SSH
+
+    - name: Remove tun interface
+      command: ip link delete tun0
+      ignore_errors: yes
+
+    - name: Disable IP forwarding
+      sysctl:
+        name: net.ipv4.ip_forward
+        value: '0'
+        state: present
+        reload: yes
+
+    - name: Remove NAT rules from iptables
+      iptables:
+        table: nat
+        chain: POSTROUTING
+        out_interface: "{{ ansible_default_ipv4.interface }}"
+        jump: MASQUERADE
+        state: absent
+
+  handlers:
+    - name: Restart SSH
+      service:
+        name: sshd
+        state: restarted
+
