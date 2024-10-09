@@ -14,6 +14,18 @@
         line: "PermitTunnel yes"
         state: present
       notify: Restart SSH
+    - name: Enable AllowTcpForwarding in sshd_config
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        line: "AllowTcpForwarding yes"
+        state: present
+      notify: Restart SSH
+    - name: Enable GatewayPortsin sshd_config
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        line: "GatewayPorts yes"
+        state: present
+      notify: Restart SSH
 
     - name: Add tun interface
       command: ip tuntap add mode tun tun0
